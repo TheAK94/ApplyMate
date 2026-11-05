@@ -1,13 +1,13 @@
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, Save, UserRound, GraduationCap, Code2, Plus, X, FolderKanban, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, UserRound, GraduationCap, Code2, Plus, X, FolderKanban, Trash2, BriefcaseBusiness, Globe } from "lucide-react";
 
 import {
   getProfile,
   saveProfile
 } from "../storage/profileStorage";
 
-import type { UserProfile, Project } from "../types/profile";
+import type { UserProfile, Project, Experience } from "../types/profile";
 
 type PersonalInfo = UserProfile["personal"];
 
@@ -32,6 +32,12 @@ function ProfileApp() {
   const [projectTechInputs, setProjectTechInputs] = useState<
     Record<string, string>
   >({});
+  const [experiences, setExperiences] = useState<Experience[]>([]);
+  const [links, setLinks] = useState({
+    linkedin: "",
+    github: "",
+    portfolio: ""
+  });
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -55,6 +61,12 @@ function ProfileApp() {
         setEducation(savedProfile.education);
         setSkills(savedProfile.skills ?? []);
         setProjects(savedProfile.projects ?? []);
+        setExperiences(savedProfile.experiences ?? []);
+        setLinks(savedProfile.links ?? {
+          linkedin: "",
+          github: "",
+          portfolio: ""
+        });
 
         const savedProjects = savedProfile.projects ?? [];
 
@@ -103,6 +115,20 @@ function ProfileApp() {
     setMessage("");
   };
 
+
+  const handleLinksChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const { name, value } = e.target;
+
+    setLinks((prev) => ({
+      ...prev,
+      [name]: value
+    }));
+
+    setMessage("");
+  };
+
   const handleSave = async () => {
     if (!profile) return;
 
@@ -126,6 +152,8 @@ function ProfileApp() {
         education,
         skills,
         projects: updatedProjects,
+        experiences,
+        links,
         updatedAt: new Date().toISOString()
       };
 
@@ -197,9 +225,49 @@ function ProfileApp() {
         )
       );
     }
+    setMessage("");
+  };
 
-  setMessage("");
-};
+  const createEmptyExperience = (): Experience => ({
+    id: crypto.randomUUID(),
+    role: "",
+    company: "",
+    description: "",
+    duration: ""
+  });
+
+  const handleAddExperience = () => {
+    setExperiences((prev) => [
+      ...prev,
+      createEmptyExperience()
+    ]);
+
+    setMessage("");
+  };
+
+  const handleRemoveExperience = (id: string) => {
+    setExperiences((prev) =>
+      prev.filter((experience) => experience.id !== id)
+    );
+
+    setMessage("");
+  };
+
+  const handleExperienceChange = (
+    id: string,
+    field: keyof Experience,
+    value: string
+  ) => {
+    setExperiences((prev) =>
+      prev.map((experience) =>
+        experience.id === id
+          ? { ...experience, [field]: value }
+          : experience
+      )
+    );
+
+    setMessage("");
+  };
 
   if (loading) {
     return <div className="profile-loading">Loading profile...</div>;
@@ -554,8 +622,170 @@ function ProfileApp() {
             </p>
           )}
         </section>
-
         
+        <section className="profile-section">
+          <div className="profile-section-heading">
+            <div className="profile-section-icon">
+              <BriefcaseBusiness size={19} />
+            </div>
+
+            <div>
+              <h3>Experience</h3>
+              <p>Showcase your internships and work experience</p>
+            </div>
+          </div>
+
+          <div className="project-list">
+            {experiences.map((experience, index) => (
+              <div className="project-card" key={experience.id}>
+                <div className="project-card-heading">
+                  <h4>Experience {index + 1}</h4>
+
+                  <button
+                    type="button"
+                    className="remove-project-button"
+                    onClick={() => handleRemoveExperience(experience.id)}
+                  >
+                    <Trash2 size={15} />
+                    Remove
+                  </button>
+                </div>
+
+                <div className="profile-form">
+                  <div className="profile-form-group">
+                    <label>Role / Job Title</label>
+                    <input
+                      value={experience.role}
+                      onChange={(e) =>
+                        handleExperienceChange(
+                          experience.id,
+                          "role",
+                          e.target.value
+                        )
+                      }
+                      placeholder="e.g. Frontend Developer Intern"
+                    />
+                  </div>
+
+                  <div className="profile-form-row">
+                    <div className="profile-form-group">
+                      <label>Company</label>
+                      <input
+                        value={experience.company}
+                        onChange={(e) =>
+                          handleExperienceChange(
+                            experience.id,
+                            "company",
+                            e.target.value
+                          )
+                        }
+                        placeholder="Company name"
+                      />
+                    </div>
+
+                    <div className="profile-form-group">
+                      <label>Duration</label>
+                      <input
+                        value={experience.duration}
+                        onChange={(e) =>
+                          handleExperienceChange(
+                            experience.id,
+                            "duration",
+                            e.target.value
+                          )
+                        }
+                        placeholder="e.g. June 2026 - August 2026"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="profile-form-group">
+                    <label>Description</label>
+                    <textarea
+                      value={experience.description}
+                      onChange={(e) =>
+                        handleExperienceChange(
+                          experience.id,
+                          "description",
+                          e.target.value
+                        )
+                      }
+                      placeholder="Describe your responsibilities and achievements..."
+                      rows={4}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            className="add-project-button"
+            onClick={handleAddExperience}
+          >
+            <Plus size={16} />
+            Add Experience
+          </button>
+
+          {experiences.length === 0 && (
+            <p className="projects-empty">
+              No experience added yet. You can add internships, jobs, or other relevant experience.
+            </p>
+          )}
+        </section>
+        
+        <section className="profile-section">
+          <div className="profile-section-heading">
+            <div className="profile-section-icon">
+              <Globe size={19} />
+            </div>
+
+            <div>
+              <h3>Professional Links</h3>
+              <p>Your online presence and developer profiles</p>
+            </div>
+          </div>
+
+          <div className="profile-form">
+            <div className="profile-form-group">
+              <label htmlFor="linkedin">LinkedIn Profile</label>
+              <input
+                id="linkedin"
+                name="linkedin"
+                type="url"
+                value={links.linkedin}
+                onChange={handleLinksChange}
+                placeholder="https://linkedin.com/in/username"
+              />
+            </div>
+
+            <div className="profile-form-group">
+              <label htmlFor="github">GitHub Profile</label>
+              <input
+                id="github"
+                name="github"
+                type="url"
+                value={links.github}
+                onChange={handleLinksChange}
+                placeholder="https://github.com/username"
+              />
+            </div>
+
+            <div className="profile-form-group">
+              <label htmlFor="portfolio">Portfolio Website</label>
+              <input
+                id="portfolio"
+                name="portfolio"
+                type="url"
+                value={links.portfolio}
+                onChange={handleLinksChange}
+                placeholder="https://yourportfolio.com"
+              />
+            </div>
+          </div>
+        </section>
+
         <div className="profile-save-area">
             <span className="profile-message">{message}</span>
 
