@@ -148,23 +148,45 @@ function App() {
                 {fields.length} fields detected
               </div>
 
+              
               {fields.map((field) => (
-                <div className="field" key={field.index}>
-                  <div>
-                    <strong>
-                      {field.label || `Field ${field.index + 1}`}
-                    </strong>
+                <div className="field" key={field.fieldId}>
+                  <div className="field-content">
+                    <div className="field-header">
+                      <div>
+                        <strong>
+                          {field.label || field.fieldId}
+                        </strong>
 
-                    <span>
-                      {field.tagName} · {field.type}
-                    </span>
+                        <span>
+                          {field.tagName} · {field.type}
+                        </span>
+                      </div>
+
+                      <div className="field-meta">
+                        {field.required && (
+                          <span className="required">Required</span>
+                        )}
+
+                        {field.kind === "choice-group" && (
+                          <span className="field-type">Group</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {field.options && field.options.length > 0 && (
+                      <div className="field-options">
+                        {field.options.map((option, index) => (
+                          <span key={`${option.value}-${index}`}>
+                            {option.label}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-
-                  {field.required && (
-                    <span className="required">Required</span>
-                  )}
                 </div>
               ))}
+
             </div>
           )}
 
