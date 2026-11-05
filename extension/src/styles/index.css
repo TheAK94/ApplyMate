@@ -695,3 +695,101 @@ footer {
   color: #777d8d;
   font-size: 11px;
 }
+
+
+.project-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.project-card {
+  padding: 20px;
+  background: #14161e;
+  border: 1px solid #303341;
+  border-radius: 11px;
+}
+
+.project-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.project-card-heading h4 {
+  margin: 0;
+  color: #c5b8ff;
+  font-size: 12px;
+}
+
+.remove-project-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  color: #ff8585;
+  background: transparent;
+  border: 1px solid #56343b;
+  border-radius: 7px;
+  font-size: 10px;
+}
+
+.remove-project-button:hover {
+  background: #342127;
+}
+
+.profile-form-group textarea {
+  width: 100%;
+  padding: 12px 13px;
+  color: #e8eaf0;
+  background: #101116;
+  border: 1px solid #303341;
+  border-radius: 8px;
+  outline: none;
+  resize: vertical;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.profile-form-group textarea:focus {
+  border-color: #8065f5;
+}
+
+.profile-form-group textarea::placeholder {
+  color: #626777;
+}
+
+.profile-field-hint {
+  color: #777d8d;
+  font-size: 10px;
+}
+
+.add-project-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 18px;
+  padding: 12px;
+  color: #b49aff;
+  background: #29253e;
+  border: 1px dashed #65518f;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.add-project-button:hover {
+  background: #342b50;
+}
+
+.projects-empty {
+  color: #777d8d;
+  font-size: 11px;
+  text-align: center;
+  margin-top: 12px;
+}

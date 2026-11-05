@@ -1,13 +1,13 @@
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, Save, UserRound, GraduationCap, Code2, Plus, X } from "lucide-react";
+import { ArrowLeft, Save, UserRound, GraduationCap, Code2, Plus, X, FolderKanban, Trash2 } from "lucide-react";
 
 import {
   getProfile,
   saveProfile
 } from "../storage/profileStorage";
 
-import type { UserProfile } from "../types/profile";
+import type { UserProfile, Project } from "../types/profile";
 
 type PersonalInfo = UserProfile["personal"];
 
@@ -28,10 +28,22 @@ function ProfileApp() {
   });
   const [skills, setSkills] = useState<string[]>([]);
   const [newSkill, setNewSkill] = useState("");
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [projectTechInputs, setProjectTechInputs] = useState<
+    Record<string, string>
+  >({});
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+
+  const createEmptyProject = (): Project => ({
+    id: crypto.randomUUID(),
+    name: "",
+    description: "",
+    technologies: [],
+    link: ""
+  });
 
   useEffect(() => {
     async function loadProfile() {
@@ -42,6 +54,18 @@ function ProfileApp() {
         setPersonal(savedProfile.personal);
         setEducation(savedProfile.education);
         setSkills(savedProfile.skills ?? []);
+        setProjects(savedProfile.projects ?? []);
+
+        const savedProjects = savedProfile.projects ?? [];
+
+        setProjectTechInputs(
+          Object.fromEntries(
+            savedProjects.map((project) => [
+              project.id,
+              project.technologies.join(", ")
+            ])
+          )
+        );
       } catch (error) {
         console.error("Unable to load profile:", error);
         setMessage("Unable to load your profile.");
@@ -86,11 +110,22 @@ function ProfileApp() {
     setMessage("");
 
     try {
+      const updatedProjects = projects.map((project) => ({
+        ...project,
+        technologies: (
+          projectTechInputs[project.id] ?? ""
+        )
+          .split(",")
+          .map((tech) => tech.trim())
+          .filter(Boolean)
+      }));
+
       const updatedProfile: UserProfile = {
         ...profile,
         personal,
         education,
         skills,
+        projects: updatedProjects,
         updatedAt: new Date().toISOString()
       };
 
@@ -132,6 +167,39 @@ function ProfileApp() {
 
     setMessage("");
   };
+
+  const handleAddProject = () => {
+    setProjects((prev) => [...prev, createEmptyProject()]);
+    setMessage("");
+  };
+
+  const handleRemoveProject = (id: string) => {
+    setProjects((prev) => prev.filter((project) => project.id !== id));
+    setMessage("");
+  };
+
+  const handleProjectChange = (
+    id: string,
+    field: keyof Project,
+    value: string
+  ) => {
+    if (field === "technologies") {
+      setProjectTechInputs((prev) => ({
+        ...prev,
+        [id]: value
+      }));
+    } else {
+      setProjects((prev) =>
+        prev.map((project) =>
+          project.id === id
+            ? { ...project, [field]: value }
+            : project
+        )
+      );
+    }
+
+  setMessage("");
+};
 
   if (loading) {
     return <div className="profile-loading">Loading profile...</div>;
@@ -367,8 +435,127 @@ function ProfileApp() {
             )}
           </div>
         </section>
+        
+        <section className="profile-section">
+          <div className="profile-section-heading">
+            <div className="profile-section-icon">
+              <FolderKanban size={19} />
+            </div>
 
+            <div>
+              <h3>Projects</h3>
+              <p>Showcase what you've built</p>
+            </div>
+          </div>
 
+          <div className="project-list">
+            {projects.map((project, index) => (
+              <div className="project-card" key={project.id}>
+                <div className="project-card-heading">
+                  <h4>Project {index + 1}</h4>
+
+                  <button
+                    type="button"
+                    className="remove-project-button"
+                    onClick={() => handleRemoveProject(project.id)}
+                    aria-label={`Remove project ${index + 1}`}
+                  >
+                    <Trash2 size={15} />
+                    Remove
+                  </button>
+                </div>
+
+                <div className="profile-form">
+                  <div className="profile-form-group">
+                    <label htmlFor={`project-name-${project.id}`}>
+                      Project Name
+                    </label>
+                    <input
+                      id={`project-name-${project.id}`}
+                      value={project.name}
+                      onChange={(e) =>
+                        handleProjectChange(project.id, "name", e.target.value)
+                      }
+                      placeholder="e.g. ApplyMate"
+                    />
+                  </div>
+
+                  <div className="profile-form-group">
+                    <label htmlFor={`project-description-${project.id}`}>
+                      Description
+                    </label>
+                    <textarea
+                      id={`project-description-${project.id}`}
+                      value={project.description}
+                      onChange={(e) =>
+                        handleProjectChange(
+                          project.id,
+                          "description",
+                          e.target.value
+                        )
+                      }
+                      placeholder="Describe what your project does..."
+                      rows={4}
+                    />
+                  </div>
+
+                  <div className="profile-form-group">
+                    <label htmlFor={`project-tech-${project.id}`}>
+                      Technologies
+                    </label>
+                    <input
+                      id={`project-tech-${project.id}`}
+                      value={projectTechInputs[project.id] ?? ""}
+                      onChange={(e) =>
+                        handleProjectChange(
+                          project.id,
+                          "technologies",
+                          e.target.value
+                        )
+                      }
+                      placeholder="React, Node.js, MongoDB"
+                    />
+                    <span className="profile-field-hint">
+                      Separate technologies with commas.
+                    </span>
+                  </div>
+
+                  <div className="profile-form-group">
+                    <label htmlFor={`project-link-${project.id}`}>
+                      GitHub / Demo Link
+                    </label>
+                    <input
+                      id={`project-link-${project.id}`}
+                      type="url"
+                      value={project.link}
+                      onChange={(e) =>
+                        handleProjectChange(project.id, "link", e.target.value)
+                      }
+                      placeholder="https://github.com/username/project"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            className="add-project-button"
+            onClick={handleAddProject}
+          >
+            <Plus size={16} />
+            Add Project
+          </button>
+
+          {projects.length === 0 && (
+            <p className="projects-empty">
+              No projects added yet. Add your first project!
+            </p>
+          )}
+        </section>
+
+        
         <div className="profile-save-area">
             <span className="profile-message">{message}</span>
 
