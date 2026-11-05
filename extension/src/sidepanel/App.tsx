@@ -18,11 +18,54 @@ import type { FormField } from "../content/extractor";
 
 import { observeFormChanges } from "../content/observer";
 
+import { getProfile } from "../storage/profileStorage";
+
+// import { matchFields } from "../matching/fieldMatcher";
+// import type { FieldMatch } from "../matching/fieldMatcher";
+
+import { analyzeFieldsWithAI } from "../services/aiClient";
+
+import { autofillFields } from "../content/autofill";
+
+function getProfileValue(
+  profile: Record<string, any>,
+  key: string | null
+): string {
+  if (!key) return "";
+
+  const value = key.split(".").reduce<any>(
+    (current, part) => current?.[part],
+    profile
+  );
+
+  if (typeof value === "string") return value;
+
+  if (Array.isArray(value)) {
+    return value.join(", ");
+  }
+
+  return "";
+}
+
 function App() {
   const [fields, setFields] = useState<FormField[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [activeTabId, setActiveTabId] = useState<number | null>(null);
+  
+  interface ReviewMatch {
+    fieldId: string;
+    fieldLabel: string;
+    profileKey: string;
+    value: string;
+    confidence: "high" | "medium";
+    action: "profile_match" | "generate_answer";
+    reason: string;
+    selected: boolean;
+    editedValue: string;
+  }
+
+  const [matches, setMatches] = useState<ReviewMatch[]>([]);
 
   const openProfile = async () => {
     try {
@@ -63,6 +106,56 @@ function App() {
 
       setFields(detectedFields);
 
+      // Load the saved profile.
+      const profile = await getProfile();
+
+      // Send all detected fields to the AI backend.
+      const aiMatches = await analyzeFieldsWithAI(
+        detectedFields,
+        profile
+      );
+
+      // Convert AI results into the format used by the review UI.
+      const reviewMatches: ReviewMatch[] = aiMatches
+        .filter(
+          (match): match is typeof match & {
+            action: "profile_match" | "generate_answer";
+          } =>
+            match.action === "profile_match" ||
+            match.action === "generate_answer"
+        )
+        .flatMap(match => {
+          const field = detectedFields.find(
+            item => item.fieldId === match.fieldId
+          );
+
+          if (!field) return [];
+
+          // Resolve profile values locally instead of trusting
+          // the value returned by the AI for profile matches.
+          const value =
+            match.action === "profile_match"
+              ? getProfileValue(profile, match.profileKey)
+              : match.value ?? "";
+
+          // Don't suggest empty values.
+          if (!value.trim()) return [];
+
+          return [{
+            fieldId: match.fieldId,
+            fieldLabel: field.label || field.fieldId,
+            profileKey: match.profileKey ?? "AI-generated answer",
+            value,
+            confidence: match.confidence >= 0.8 ? "high" : "medium",
+            action: match.action,
+            reason: match.reason,
+            selected: true,
+            editedValue: value
+          }];
+        });
+
+      setMatches(reviewMatches);
+
       // Start observing future DOM changes
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
@@ -82,6 +175,64 @@ function App() {
           : "Unable to analyze this page."
       );
 
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAutofill = async () => {
+    if (activeTabId === null) {
+      setError("Please analyze a webpage first.");
+      return;
+    }
+
+    const selectedMatches = matches.filter(
+      match => match.selected && match.editedValue.trim()
+    );
+
+    if (selectedMatches.length === 0) {
+      setError("Please select at least one field to fill.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError("");
+
+      const items = selectedMatches.map(match => ({
+        fieldId: match.fieldId,
+        value: match.editedValue
+      }));
+
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: activeTabId },
+        func: autofillFields,
+        args: [items, fields.map(field => ({
+          fieldId: field.fieldId,
+          id: field.id,
+          name: field.name,
+          type: field.type
+        }))]
+      });
+
+      const autofillResult = results[0]?.result;
+
+      if (!autofillResult) {
+        throw new Error("Unable to fill the application form.");
+      }
+
+      setError(
+        `Filled ${autofillResult.filled.length} fields. Skipped ${autofillResult.skipped.length}.`
+      );
+
+    } catch (err) {
+      console.error("ApplyMate autofill error:", err);
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to autofill this page."
+      );
     } finally {
       setLoading(false);
     }
@@ -301,6 +452,109 @@ function App() {
                   </div>
                 </div>
               ))}
+
+            </div>
+          )}
+
+          {/* Review Matches */}
+          {matches.length > 0 && (
+            <div className="review-section">
+
+              <div className="review-heading">
+                <div>
+                  <h3>Review your matches</h3>
+                  <p>
+                    Check the values before filling the application.
+                  </p>
+                </div>
+
+                <span className="match-count">
+                  {matches.length} matched
+                </span>
+              </div>
+
+              {matches.map((match, index) => (
+                <div className="review-field" key={match.fieldId}>
+
+                  <div className="review-field-header">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={match.selected}
+                        onChange={event => {
+                          setMatches(previous =>
+                            previous.map((item, i) =>
+                              i === index
+                                ? {
+                                    ...item,
+                                    selected: event.target.checked
+                                  }
+                                : item
+                            )
+                          );
+                        }}
+                      />
+
+                      <strong>{match.fieldLabel}</strong>
+                    </label>
+
+                    <span
+                      className={`confidence ${match.confidence}`}
+                    >
+                      {match.confidence} match
+                    </span>
+                  </div>
+
+                  <input
+                    type="text"
+                    className="review-input"
+                    value={match.editedValue}
+                    onChange={event => {
+                      setMatches(previous =>
+                        previous.map((item, i) =>
+                          i === index
+                            ? {
+                                ...item,
+                                editedValue: event.target.value
+                              }
+                            : item
+                        )
+                      );
+                    }}
+                  />
+
+                  <div className="matched-source">
+                    <span>
+                      {match.action === "profile_match"
+                        ? `From profile: ${match.profileKey}`
+                        : "AI-generated answer"}
+                    </span>
+
+                    <span title={match.reason}>
+                      {match.reason}
+                    </span>
+                  </div>
+
+                </div>
+              ))}
+
+              <button
+                className="analyze-button"
+                onClick={handleAutofill}
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <LoaderCircle size={16} className="spin" />
+                    Filling...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={16} />
+                    Fill Selected Fields
+                  </>
+                )}
+              </button>
 
             </div>
           )}
