@@ -9,7 +9,8 @@ import {
   Sparkles,
   CheckCircle2,
   Globe,
-  LoaderCircle
+  LoaderCircle,
+  ExternalLink
 } from "lucide-react";
 
 import { extractFields } from "../content/extractor";
@@ -22,6 +23,17 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [activeTabId, setActiveTabId] = useState<number | null>(null);
+
+  const openProfile = async () => {
+    try {
+      await chrome.tabs.create({
+        url: chrome.runtime.getURL("profile.html")
+      });
+    } catch (error) {
+      console.error("Unable to open profile:", error);
+      setError("Unable to open your profile.");
+    }
+  };
 
   // Analyze the current webpage
   const analyzePage = async () => {
@@ -183,10 +195,16 @@ function App() {
 
           <div className="profile-info">
             <strong>Your profile</strong>
-            <span>Profile setup coming soon</span>
+            <span>Manage your application information</span>
           </div>
 
-          <span className="pending">Pending</span>
+          <button
+            className="manage-profile-button"
+            onClick={openProfile}
+          >
+            Manage
+            <ExternalLink size={14} />
+          </button>
         </section>
 
         {/* Analyze Section */}
