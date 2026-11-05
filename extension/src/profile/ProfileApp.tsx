@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, Save, UserRound } from "lucide-react";
+import { ArrowLeft, Save, UserRound, GraduationCap } from "lucide-react";
 
 import {
   getProfile,
@@ -19,6 +19,13 @@ function ProfileApp() {
     phone: "",
     location: ""
   });
+  const [education, setEducation] = useState({
+    college: "",
+    degree: "",
+    branch: "",
+    graduationYear: "",
+    cgpa: ""
+  });
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -31,6 +38,7 @@ function ProfileApp() {
 
         setProfile(savedProfile);
         setPersonal(savedProfile.personal);
+        setEducation(savedProfile.education);
       } catch (error) {
         console.error("Unable to load profile:", error);
         setMessage("Unable to load your profile.");
@@ -55,6 +63,19 @@ function ProfileApp() {
     setMessage("");
   };
 
+  const handleEducationChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const { name, value } = e.target;
+
+    setEducation((prev) => ({
+      ...prev,
+      [name]: value
+    }));
+
+    setMessage("");
+  };
+
   const handleSave = async () => {
     if (!profile) return;
 
@@ -65,6 +86,7 @@ function ProfileApp() {
       const updatedProfile: UserProfile = {
         ...profile,
         personal,
+        education,
         updatedAt: new Date().toISOString()
       };
 
@@ -178,8 +200,85 @@ function ProfileApp() {
               />
             </div>
           </div>
+        </section>
 
-          <div className="profile-save-area">
+        
+        <section className="profile-section">
+          <div className="profile-section-heading">
+            <div className="profile-section-icon">
+              <GraduationCap size={19} />
+            </div>
+
+            <div>
+              <h3>Education</h3>
+              <p>Your academic background</p>
+            </div>
+          </div>
+
+          <div className="profile-form">
+            <div className="profile-form-group">
+              <label htmlFor="college">College / University</label>
+              <input
+                id="college"
+                name="college"
+                value={education.college}
+                onChange={handleEducationChange}
+                placeholder="Enter your college name"
+              />
+            </div>
+
+            <div className="profile-form-row">
+              <div className="profile-form-group">
+                <label htmlFor="degree">Degree</label>
+                <input
+                  id="degree"
+                  name="degree"
+                  value={education.degree}
+                  onChange={handleEducationChange}
+                  placeholder="e.g. B.Tech"
+                />
+              </div>
+
+              <div className="profile-form-group">
+                <label htmlFor="branch">Branch / Specialization</label>
+                <input
+                  id="branch"
+                  name="branch"
+                  value={education.branch}
+                  onChange={handleEducationChange}
+                  placeholder="e.g. Computer Science"
+                />
+              </div>
+            </div>
+
+            <div className="profile-form-row">
+              <div className="profile-form-group">
+                <label htmlFor="graduationYear">Graduation Year</label>
+                <input
+                  id="graduationYear"
+                  name="graduationYear"
+                  type="number"
+                  value={education.graduationYear}
+                  onChange={handleEducationChange}
+                  placeholder="e.g. 2027"
+                />
+              </div>
+
+              <div className="profile-form-group">
+                <label htmlFor="cgpa">CGPA</label>
+                <input
+                  id="cgpa"
+                  name="cgpa"
+                  value={education.cgpa}
+                  onChange={handleEducationChange}
+                  placeholder="e.g. 8.5"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div className="profile-save-area">
             <span className="profile-message">{message}</span>
 
             <button
@@ -187,11 +286,10 @@ function ProfileApp() {
               onClick={handleSave}
               disabled={saving || !profile}
             >
-              <Save size={16} />
-              {saving ? "Saving..." : "Save Changes"}
-            </button>
-          </div>
-        </section>
+            <Save size={16} />
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
       </main>
     </div>
   );
