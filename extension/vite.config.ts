@@ -17,6 +17,11 @@ const manifest = {
     "scripting"
   ],
 
+  host_permissions: [
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+
   background: {
     service_worker: "src/background/service-worker.ts",
     type: "module"

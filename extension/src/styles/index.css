@@ -1,0 +1,290 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  font-family: 'Inter', sans-serif;
+  color: #e8eaf0;
+  background: #101116;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: #101116;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 22px 18px;
+  gap: 26px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #252731;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.brand-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: #7258ed;
+  display: grid;
+  place-items: center;
+  color: white;
+}
+
+.brand h1 {
+  font-size: 17px;
+  margin: 0 0 4px;
+}
+
+.brand span {
+  font-size: 9px;
+  letter-spacing: 1.2px;
+  color: #858999;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  color: #a9b0bf;
+}
+
+.status span {
+  width: 7px;
+  height: 7px;
+  background: #43d69a;
+  border-radius: 50%;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.welcome .eyebrow {
+  color: #a38eff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+
+.welcome h2 {
+  font-size: 27px;
+  line-height: 1.25;
+  letter-spacing: -0.9px;
+  margin: 14px 0 10px;
+  max-width: 280px;
+}
+
+.welcome p {
+  color: #9297a6;
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 0;
+}
+
+.profile-card,
+.analyze-card {
+  background: #191b23;
+  border: 1px solid #292c38;
+  border-radius: 15px;
+  padding: 16px;
+}
+
+.profile-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.profile-icon {
+  background: #29253e;
+  color: #ac9aff;
+  padding: 10px;
+  border-radius: 11px;
+}
+
+.profile-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
+
+.profile-info strong {
+  font-size: 12px;
+}
+
+.profile-info span {
+  font-size: 10px;
+  color: #858999;
+}
+
+.pending {
+  color: #e7b768;
+  font-size: 10px;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #ac9aff;
+}
+
+.section-heading h3 {
+  color: #e8eaf0;
+  font-size: 13px;
+  margin: 0 0 6px;
+}
+
+.section-heading p {
+  font-size: 10px;
+  color: #858999;
+  margin: 0;
+}
+
+.analyze-button {
+  width: 100%;
+  border: none;
+  background: #7258ed;
+  color: white;
+  border-radius: 10px;
+  padding: 13px;
+  margin-top: 20px;
+  font-weight: 600;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  transition: background 0.2s;
+}
+
+.analyze-button:hover {
+  background: #826bf4;
+}
+
+.analyze-button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.empty-state {
+  border: 1px dashed #373a48;
+  border-radius: 10px;
+  margin-top: 16px;
+  padding: 23px 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: #777d8d;
+  text-align: center;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.results {
+  margin-top: 20px;
+}
+
+.result-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #50dba0;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.field {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-top: 1px solid #292c38;
+  gap: 10px;
+}
+
+.field div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.field strong {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.field div span {
+  color: #858999;
+  font-size: 10px;
+}
+
+.required {
+  font-size: 9px;
+  color: #e7b768;
+  white-space: nowrap;
+}
+
+.error {
+  color: #ff8585;
+  font-size: 11px;
+  line-height: 1.5;
+  margin-top: 12px;
+}
+
+footer {
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid #252731;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: #686d7c;
+  font-size: 9px;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
