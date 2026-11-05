@@ -36,6 +36,12 @@ export interface ProfessionalLinks {
   portfolio: string;
 }
 
+export interface ResumeMetadata {
+  fileName: string;
+  fileSize: number;
+  uploadedAt: string;
+}
+
 export interface UserProfile {
   personal: PersonalInfo;
   education: Education;
@@ -43,5 +49,6 @@ export interface UserProfile {
   projects: Project[];
   experiences: Experience[];
   links: ProfessionalLinks;
+  resume: ResumeMetadata | null;
   updatedAt: string | null;
 }

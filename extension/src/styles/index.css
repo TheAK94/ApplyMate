@@ -793,3 +793,91 @@ footer {
   text-align: center;
   margin-top: 12px;
 }
+
+.resume-card {
+  padding: 18px;
+  border: 1px solid #30313b;
+  border-radius: 12px;
+  background: #171820;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.resume-file-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.resume-file-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  background: #252638;
+  color: #a5a6ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.resume-file-info h4 {
+  margin: 0 0 5px;
+  font-size: 14px;
+  word-break: break-word;
+}
+
+.resume-file-info p {
+  margin: 0;
+  color: #9294a3;
+  font-size: 12px;
+}
+
+.resume-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.resume-actions button,
+.resume-download-button,
+.resume-upload-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 14px;
+  border: 1px solid #353642;
+  border-radius: 8px;
+  background: #22232d;
+  color: #e8eaf0;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.resume-upload-area {
+  padding: 28px;
+  border: 1px dashed #454653;
+  border-radius: 12px;
+  text-align: center;
+  color: #a5a6b5;
+}
+
+.resume-upload-area h4 {
+  color: #e8eaf0;
+  margin: 12px 0 6px;
+}
+
+.resume-upload-area p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.resume-upload-button {
+  margin-top: 16px;
+  background: #6667e8;
+  border-color: #6667e8;
+  color: white;
+  width: fit-content;
+}

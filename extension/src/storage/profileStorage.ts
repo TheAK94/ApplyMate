@@ -31,6 +31,8 @@ export const defaultProfile: UserProfile = {
     portfolio: ""
   },
 
+  resume: null,
+
   updatedAt: null
 };
 

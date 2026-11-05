@@ -1,13 +1,36 @@
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, Save, UserRound, GraduationCap, Code2, Plus, X, FolderKanban, Trash2, BriefcaseBusiness, Globe } from "lucide-react";
+import { 
+  ArrowLeft, 
+  Save, 
+  UserRound, 
+  GraduationCap, 
+  Code2, 
+  Plus, 
+  X, 
+  FolderKanban, 
+  Trash2, 
+  BriefcaseBusiness, 
+  Globe, 
+  FileText,
+  Upload,
+  Eye,
+  Download
+ } from "lucide-react";
 
 import {
   getProfile,
   saveProfile
 } from "../storage/profileStorage";
 
-import type { UserProfile, Project, Experience } from "../types/profile";
+import {
+  saveResume,
+  getResume,
+  deleteResume
+} from "../storage/resumeStorage";
+
+
+import type { UserProfile, Project, Experience, ResumeMetadata } from "../types/profile";
 
 type PersonalInfo = UserProfile["personal"];
 
@@ -38,6 +61,8 @@ function ProfileApp() {
     github: "",
     portfolio: ""
   });
+  const [resume, setResume] = useState<ResumeMetadata | null>(null);
+  const [resumeUrl, setResumeUrl] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -50,6 +75,14 @@ function ProfileApp() {
     technologies: [],
     link: ""
   });
+
+  useEffect(() => {
+    return () => {
+      if (resumeUrl) {
+        URL.revokeObjectURL(resumeUrl);
+      }
+    };
+  }, [resumeUrl]);
 
   useEffect(() => {
     async function loadProfile() {
@@ -67,6 +100,13 @@ function ProfileApp() {
           github: "",
           portfolio: ""
         });
+        setResume(savedProfile.resume ?? null);
+
+        const savedResume = await getResume();
+
+        if (savedResume) {
+          setResumeUrl(URL.createObjectURL(savedResume));
+        }
 
         const savedProjects = savedProfile.projects ?? [];
 
@@ -127,6 +167,94 @@ function ProfileApp() {
     }));
 
     setMessage("");
+  };
+
+  const handleResumeUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    // Validate file size (5 MB maximum)
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage("Resume must be smaller than 5 MB.");
+      e.target.value = "";
+      return;
+    }
+
+    // Validate PDF signature, not just the extension
+    const header = await file.slice(0, 5).text();
+
+    if (file.type !== "application/pdf" || header !== "%PDF-") {
+      setMessage("Please upload a valid PDF file.");
+      e.target.value = "";
+      return;
+    }
+
+    if (!profile) return;
+
+    try {
+      await saveResume(file);
+
+      const metadata: ResumeMetadata = {
+        fileName: file.name,
+        fileSize: file.size,
+        uploadedAt: new Date().toISOString()
+      };
+
+      const updatedProfile: UserProfile = {
+        ...profile,
+        resume: metadata,
+        updatedAt: new Date().toISOString()
+      };
+
+      await saveProfile(updatedProfile);
+
+      setProfile(updatedProfile);
+      setResume(metadata);
+
+      setResumeUrl((previousUrl) => {
+        if (previousUrl) URL.revokeObjectURL(previousUrl);
+        return URL.createObjectURL(file);
+      });
+
+      setMessage("Resume uploaded successfully!");
+    } catch (error) {
+      console.error("Resume upload failed:", error);
+      setMessage("Unable to upload resume.");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
+  const handleRemoveResume = async () => {
+    if (!profile) return;
+
+    try {
+      await deleteResume();
+
+      const updatedProfile: UserProfile = {
+        ...profile,
+        resume: null,
+        updatedAt: new Date().toISOString()
+      };
+
+      await saveProfile(updatedProfile);
+
+      setProfile(updatedProfile);
+      setResume(null);
+
+      setResumeUrl((previousUrl) => {
+        if (previousUrl) URL.revokeObjectURL(previousUrl);
+        return null;
+      });
+
+      setMessage("Resume removed successfully!");
+    } catch (error) {
+      console.error("Unable to remove resume:", error);
+      setMessage("Unable to remove resume.");
+    }
   };
 
   const handleSave = async () => {
@@ -369,6 +497,87 @@ function ProfileApp() {
           </div>
         </section>
 
+        <section className="profile-section">
+          <div className="profile-section-heading">
+            <div className="profile-section-icon">
+              <FileText size={19} />
+            </div>
+
+            <div>
+              <h3>Resume / CV</h3>
+              <p>Upload your latest resume for internship applications</p>
+            </div>
+          </div>
+
+          {resume ? (
+            <div className="resume-card">
+              <div className="resume-file-info">
+                <div className="resume-file-icon">
+                  <FileText size={24} />
+                </div>
+
+                <div>
+                  <h4>{resume.fileName}</h4>
+                  <p>
+                    {(resume.fileSize / (1024 * 1024)).toFixed(2)} MB
+                  </p>
+                </div>
+              </div>
+
+              <div className="resume-actions">
+                {resumeUrl && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => window.open(resumeUrl, "_blank")}
+                      title="Preview resume"
+                    >
+                      <Eye size={16} />
+                      Preview
+                    </button>
+
+                    <a
+                      href={resumeUrl}
+                      download={resume.fileName}
+                      className="resume-download-button"
+                    >
+                      <Download size={16} />
+                      Download
+                    </a>
+                  </>
+                )}
+
+                <button
+                  type="button"
+                  className="remove-project-button"
+                  onClick={handleRemoveResume}
+                >
+                  <Trash2 size={15} />
+                  Remove
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="resume-upload-area">
+              <FileText size={32} />
+
+              <h4>No resume uploaded</h4>
+              <p>Upload your resume in PDF format (maximum 5 MB).</p>
+            </div>
+          )}
+
+          <label className="resume-upload-button">
+            <Upload size={16} />
+            {resume ? "Replace Resume" : "Upload Resume"}
+
+            <input
+              type="file"
+              accept=".pdf,application/pdf"
+              onChange={handleResumeUpload}
+              hidden
+            />
+          </label>
+        </section>
         
         <section className="profile-section">
           <div className="profile-section-heading">
