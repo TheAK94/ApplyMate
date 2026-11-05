@@ -59,13 +59,20 @@ function App() {
     profileKey: string;
     value: string;
     confidence: "high" | "medium";
-    action: "profile_match" | "generate_answer";
+    action:
+      | "profile_match"
+      | "generate_answer"
+      | "manual_input"
+      | "ignore";
     reason: string;
     selected: boolean;
     editedValue: string;
   }
 
   const [matches, setMatches] = useState<ReviewMatch[]>([]);
+  const [autofillMode, setAutofillMode] = useState<
+    "review" | "quick"
+  >("review");
 
   const openProfile = async () => {
     try {
@@ -116,45 +123,37 @@ function App() {
       );
 
       // Convert AI results into the format used by the review UI.
-      const reviewMatches: ReviewMatch[] = aiMatches
-        .filter(
-          (match): match is typeof match & {
-            action: "profile_match" | "generate_answer";
-          } =>
-            match.action === "profile_match" ||
-            match.action === "generate_answer"
-        )
-        .flatMap(match => {
-          const field = detectedFields.find(
-            item => item.fieldId === match.fieldId
-          );
+      const reviewMatches: ReviewMatch[] = aiMatches.flatMap(match => {
+      const field = detectedFields.find(
+        item => item.fieldId === match.fieldId
+      );
 
-          if (!field) return [];
+      if (!field) return [];
 
-          // Resolve profile values locally instead of trusting
-          // the value returned by the AI for profile matches.
-          const value =
-            match.action === "profile_match"
-              ? getProfileValue(profile, match.profileKey)
-              : match.value ?? "";
+      let value = "";
 
-          // Don't suggest empty values.
-          if (!value.trim()) return [];
+      if (match.action === "profile_match") {
+        value = getProfileValue(profile, match.profileKey);
+      } else if (match.action === "generate_answer") {
+        value = match.value ?? "";
+      }
 
-          return [{
-            fieldId: match.fieldId,
-            fieldLabel: field.label || field.fieldId,
-            profileKey: match.profileKey ?? "AI-generated answer",
-            value,
-            confidence: match.confidence >= 0.8 ? "high" : "medium",
-            action: match.action,
-            reason: match.reason,
-            selected: true,
-            editedValue: value
-          }];
-        });
+      return [{
+        fieldId: match.fieldId,
+        fieldLabel: field.label || field.fieldId,
+        profileKey: match.profileKey ?? "",
+        value,
+        confidence: match.confidence >= 0.8 ? "high" : "medium",
+        action: match.action,
+        reason: match.reason,
+        selected:
+          match.action === "profile_match" ||
+          match.action === "generate_answer",
+        editedValue: value
+      }];
+    });
 
-      setMatches(reviewMatches);
+    setMatches(reviewMatches);
 
       // Start observing future DOM changes
       await chrome.scripting.executeScript({
@@ -186,9 +185,21 @@ function App() {
       return;
     }
 
-    const selectedMatches = matches.filter(
-      match => match.selected && match.editedValue.trim()
-    );
+    const selectedMatches = matches.filter(match => {
+      if (autofillMode === "quick") {
+        return (
+          match.confidence === "high" &&
+          ["profile_match", "generate_answer"].includes(match.action) &&
+          match.editedValue.trim() !== ""
+        );
+      }
+
+      return (
+        match.selected &&
+        match.action !== "ignore" &&
+        match.editedValue.trim() !== ""
+      );
+    });
 
     if (selectedMatches.length === 0) {
       setError("Please select at least one field to fill.");
@@ -456,92 +467,145 @@ function App() {
             </div>
           )}
 
-          {/* Review Matches */}
+          <div className="mode-selector">
+            <button
+              className={autofillMode === "review" ? "active" : ""}
+              onClick={() => setAutofillMode("review")}
+            >
+              Review & Fill
+            </button>
+
+            <button
+              className={autofillMode === "quick" ? "active" : ""}
+              onClick={() => setAutofillMode("quick")}
+            >
+              Quick Autofill
+            </button>
+          </div>
+
+          {/* AI Review Matches */}
           {matches.length > 0 && (
             <div className="review-section">
 
               <div className="review-heading">
                 <div>
-                  <h3>Review your matches</h3>
-                  <p>
-                    Check the values before filling the application.
-                  </p>
+                  <h3>AI Analysis Results</h3>
+                  <p>Review what ApplyMate understood about this form.</p>
                 </div>
 
                 <span className="match-count">
-                  {matches.length} matched
+                  {matches.filter(m =>
+                    m.action === "profile_match" ||
+                    m.action === "generate_answer"
+                  ).length} ready
                 </span>
               </div>
 
-              {matches.map((match, index) => (
-                <div className="review-field" key={match.fieldId}>
+              {autofillMode === "review" ? (
+                matches.map(match => {
+                  const isIgnored = match.action === "ignore";
+                  const needsInput = match.action === "manual_input";
 
-                  <div className="review-field-header">
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={match.selected}
-                        onChange={event => {
-                          setMatches(previous =>
-                            previous.map((item, i) =>
-                              i === index
-                                ? {
-                                    ...item,
-                                    selected: event.target.checked
-                                  }
-                                : item
-                            )
-                          );
-                        }}
-                      />
+                  const statusLabel = {
+                    profile_match: "From profile",
+                    generate_answer: "AI generated",
+                    manual_input: "Needs your input",
+                    ignore: "Ignored"
+                  }[match.action];
 
-                      <strong>{match.fieldLabel}</strong>
-                    </label>
+                  return (
+                    <div className="review-field" key={match.fieldId}>
+                      <div className="review-field-header">
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={match.selected}
+                            disabled={isIgnored}
+                            onChange={event => {
+                              setMatches(previous =>
+                                previous.map(item =>
+                                  item.fieldId === match.fieldId
+                                    ? { ...item, selected: event.target.checked }
+                                    : item
+                                )
+                              );
+                            }}
+                          />
 
-                    <span
-                      className={`confidence ${match.confidence}`}
-                    >
-                      {match.confidence} match
-                    </span>
-                  </div>
+                          <strong>{match.fieldLabel}</strong>
+                        </label>
 
-                  <input
-                    type="text"
-                    className="review-input"
-                    value={match.editedValue}
-                    onChange={event => {
-                      setMatches(previous =>
-                        previous.map((item, i) =>
-                          i === index
-                            ? {
-                                ...item,
-                                editedValue: event.target.value
-                              }
-                            : item
-                        )
-                      );
-                    }}
-                  />
+                        <span className={`confidence ${match.confidence}`}>
+                          {statusLabel}
+                        </span>
+                      </div>
 
-                  <div className="matched-source">
-                    <span>
-                      {match.action === "profile_match"
-                        ? `From profile: ${match.profileKey}`
-                        : "AI-generated answer"}
-                    </span>
+                      {!isIgnored && (
+                        <input
+                          type="text"
+                          className="review-input"
+                          placeholder={
+                            needsInput
+                              ? "Enter this information..."
+                              : "Review suggested value..."
+                          }
+                          value={match.editedValue}
+                          onChange={event => {
+                            setMatches(previous =>
+                              previous.map(item =>
+                                item.fieldId === match.fieldId
+                                  ? {
+                                      ...item,
+                                      editedValue: event.target.value,
+                                      selected: event.target.value.trim()
+                                        ? item.selected
+                                        : false
+                                    }
+                                  : item
+                              )
+                            );
+                          }}
+                        />
+                      )}
 
-                    <span title={match.reason}>
-                      {match.reason}
-                    </span>
-                  </div>
+                      <span className="matched-source">
+                        {match.reason}
+                      </span>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="quick-mode-summary">
+                  <Sparkles size={24} />
 
+                  <strong>Quick Autofill is ready</strong>
+
+                  <p>
+                    ApplyMate will fill high-confidence matches automatically.
+                    You won't need to review each field individually.
+                  </p>
+
+                  <p>
+                    {matches.filter(match =>
+                      match.confidence === "high" &&
+                      ["profile_match", "generate_answer"].includes(match.action) &&
+                      match.editedValue.trim() !== ""
+                    ).length} fields ready to fill
+                  </p>
                 </div>
-              ))}
+              )}
 
               <button
                 className="analyze-button"
                 onClick={handleAutofill}
-                disabled={loading}
+                disabled={
+                  loading ||
+                  !matches.some(match =>
+                    match.selected &&
+                    !["ignore"].includes(match.action) &&
+                    match.editedValue.trim()
+                  )
+                }
               >
                 {loading ? (
                   <>
@@ -551,7 +615,9 @@ function App() {
                 ) : (
                   <>
                     <Sparkles size={16} />
-                    Fill Selected Fields
+                    {autofillMode === "quick"
+                      ? "Start Quick Autofill"
+                      : "Fill Selected Fields"}
                   </>
                 )}
               </button>

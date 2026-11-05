@@ -984,3 +984,38 @@ footer {
   font-size: 10px;
   overflow-wrap: anywhere;
 }
+
+.mode-selector {
+  display: flex;
+  gap: 8px;
+  margin: 16px 0;
+  padding: 4px;
+  background: var(--surface-secondary, #20202a);
+  border-radius: 10px;
+}
+
+.mode-selector button {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.mode-selector button.active {
+  background: #6655d9;
+  color: white;
+}
+
+.quick-mode-summary {
+  padding: 20px;
+  text-align: center;
+}
+
+.quick-mode-summary p {
+  color: #a5a5b5;
+  font-size: 13px;
+  line-height: 1.5;
+}
