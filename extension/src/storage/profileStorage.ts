@@ -1,5 +1,5 @@
 
-import type { UserProfile } from "../../types/profile";
+import type { UserProfile } from "../types/profile";
 
 const PROFILE_KEY = "applymate_profile";
 
