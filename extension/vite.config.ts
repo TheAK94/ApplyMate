@@ -14,7 +14,8 @@ const manifest = {
   permissions: [
     "sidePanel",
     "activeTab",
-    "scripting"
+    "scripting",
+    "storage"
   ],
 
   host_permissions: [
