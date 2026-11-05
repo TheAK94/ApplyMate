@@ -5,10 +5,7 @@ import {
   BriefcaseBusiness,
   UserRound,
   FileText,
-  ScanSearch,
   Sparkles,
-  CheckCircle2,
-  Globe,
   LoaderCircle,
   ExternalLink
 } from "lucide-react";
@@ -20,12 +17,31 @@ import { observeFormChanges } from "../content/observer";
 
 import { getProfile } from "../storage/profileStorage";
 
-// import { matchFields } from "../matching/fieldMatcher";
-// import type { FieldMatch } from "../matching/fieldMatcher";
-
 import { analyzeFieldsWithAI } from "../services/aiClient";
 
 import { autofillFields } from "../content/autofill";
+
+interface ReviewMatch {
+  fieldId: string;
+  fieldLabel: string;
+  profileKey: string;
+  value: string;
+  confidence: "high" | "medium";
+  action:
+    | "profile_match"
+    | "generate_answer"
+    | "manual_input"
+    | "ignore";
+  reason: string;
+  selected: boolean;
+  editedValue: string;
+}
+
+interface AnalysisResult {
+  tabId: number;
+  detectedFields: FormField[];
+  reviewMatches: ReviewMatch[];
+}
 
 function getProfileValue(
   profile: Record<string, any>,
@@ -51,29 +67,18 @@ function App() {
   const [fields, setFields] = useState<FormField[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
   const [activeTabId, setActiveTabId] = useState<number | null>(null);
-  
-  interface ReviewMatch {
-    fieldId: string;
-    fieldLabel: string;
-    profileKey: string;
-    value: string;
-    confidence: "high" | "medium";
-    action:
-      | "profile_match"
-      | "generate_answer"
-      | "manual_input"
-      | "ignore";
-    reason: string;
-    selected: boolean;
-    editedValue: string;
-  }
 
   const [matches, setMatches] = useState<ReviewMatch[]>([]);
+
+  const [analysisReady, setAnalysisReady] = useState(false);
+
   const [autofillMode, setAutofillMode] = useState<
     "review" | "quick"
   >("review");
 
+  // Open profile dashboard
   const openProfile = async () => {
     try {
       await chrome.tabs.create({
@@ -86,10 +91,13 @@ function App() {
   };
 
   // Analyze the current webpage
-  const analyzePage = async () => {
+  const analyzePage = async (): Promise<AnalysisResult | null> => {
     setLoading(true);
     setError("");
+
     setFields([]);
+    setMatches([]);
+    setAnalysisReady(false);
 
     try {
       const [tab] = await chrome.tabs.query({
@@ -103,7 +111,7 @@ function App() {
 
       setActiveTabId(tab.id);
 
-      // Extract existing form fields
+      // Extract form fields
       const results = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: extractFields
@@ -111,49 +119,56 @@ function App() {
 
       const detectedFields = results[0]?.result ?? [];
 
+      if (detectedFields.length === 0) {
+        throw new Error("No form fields found on this page.");
+      }
+
       setFields(detectedFields);
 
-      // Load the saved profile.
+      // Load saved profile
       const profile = await getProfile();
 
-      // Send all detected fields to the AI backend.
+      // Analyze all fields using AI
       const aiMatches = await analyzeFieldsWithAI(
         detectedFields,
         profile
       );
 
-      // Convert AI results into the format used by the review UI.
+      // Prepare review matches
       const reviewMatches: ReviewMatch[] = aiMatches.flatMap(match => {
-      const field = detectedFields.find(
-        item => item.fieldId === match.fieldId
-      );
+        const field = detectedFields.find(
+          item => item.fieldId === match.fieldId
+        );
 
-      if (!field) return [];
+        if (!field) return [];
 
-      let value = "";
+        let value = "";
 
-      if (match.action === "profile_match") {
-        value = getProfileValue(profile, match.profileKey);
-      } else if (match.action === "generate_answer") {
-        value = match.value ?? "";
-      }
+        if (match.action === "profile_match") {
+          value = getProfileValue(profile, match.profileKey);
+        } else if (match.action === "generate_answer") {
+          value = match.value ?? "";
+        }
 
-      return [{
-        fieldId: match.fieldId,
-        fieldLabel: field.label || field.fieldId,
-        profileKey: match.profileKey ?? "",
-        value,
-        confidence: match.confidence >= 0.8 ? "high" : "medium",
-        action: match.action,
-        reason: match.reason,
-        selected:
-          match.action === "profile_match" ||
-          match.action === "generate_answer",
-        editedValue: value
-      }];
-    });
+        return [{
+          fieldId: match.fieldId,
+          fieldLabel: field.label || field.fieldId,
+          profileKey: match.profileKey ?? "",
+          value,
+          confidence: match.confidence >= 0.8
+            ? "high"
+            : "medium",
+          action: match.action,
+          reason: match.reason,
+          selected:
+            match.action === "profile_match" ||
+            match.action === "generate_answer",
+          editedValue: value
+        }];
+      });
 
-    setMatches(reviewMatches);
+      setMatches(reviewMatches);
+      setAnalysisReady(true);
 
       // Start observing future DOM changes
       await chrome.scripting.executeScript({
@@ -161,9 +176,11 @@ function App() {
         func: observeFormChanges
       });
 
-      if (detectedFields.length === 0) {
-        setError("No form fields found on this page.");
-      }
+      return {
+        tabId: tab.id,
+        detectedFields,
+        reviewMatches
+      };
 
     } catch (err) {
       console.error("ApplyMate analysis error:", err);
@@ -174,19 +191,22 @@ function App() {
           : "Unable to analyze this page."
       );
 
+      return null;
+
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAutofill = async () => {
-    if (activeTabId === null) {
-      setError("Please analyze a webpage first.");
-      return;
-    }
-
-    const selectedMatches = matches.filter(match => {
-      if (autofillMode === "quick") {
+  // Fill selected fields
+  const fillMatches = async (
+    tabId: number,
+    detectedFields: FormField[],
+    currentMatches: ReviewMatch[],
+    mode: "quick" | "review"
+  ) => {
+    const selectedMatches = currentMatches.filter(match => {
+      if (mode === "quick") {
         return (
           match.confidence === "high" &&
           ["profile_match", "generate_answer"].includes(match.action) &&
@@ -196,13 +216,15 @@ function App() {
 
       return (
         match.selected &&
-        match.action !== "ignore" &&
+        ["profile_match", "generate_answer", "manual_input"].includes(
+          match.action
+        ) &&
         match.editedValue.trim() !== ""
       );
     });
 
     if (selectedMatches.length === 0) {
-      setError("Please select at least one field to fill.");
+      setError("No eligible fields selected for filling.");
       return;
     }
 
@@ -216,14 +238,18 @@ function App() {
       }));
 
       const results = await chrome.scripting.executeScript({
-        target: { tabId: activeTabId },
+        target: { tabId },
         func: autofillFields,
-        args: [items, fields.map(field => ({
-          fieldId: field.fieldId,
-          id: field.id,
-          name: field.name,
-          type: field.type
-        }))]
+        args: [
+          items,
+          detectedFields.map(field => ({
+            fieldId: field.fieldId,
+            id: field.id,
+            name: field.name,
+            type: field.type,
+            kind: field.kind
+          }))
+        ]
       });
 
       const autofillResult = results[0]?.result;
@@ -244,9 +270,77 @@ function App() {
           ? err.message
           : "Unable to autofill this page."
       );
+
     } finally {
       setLoading(false);
     }
+  };
+
+  // Main action button
+  const handlePrimaryAction = async () => {
+    // Analyze first if there are no current results
+    if (!analysisReady) {
+      const analysis = await analyzePage();
+
+      if (!analysis) return;
+
+      // QuickFill analyzes and fills in one click
+      if (autofillMode === "quick") {
+        await fillMatches(
+          analysis.tabId,
+          analysis.detectedFields,
+          analysis.reviewMatches,
+          "quick"
+        );
+      }
+
+      // Review mode waits for user approval
+      return;
+    }
+
+    // Fill using existing analysis
+    if (activeTabId !== null) {
+      await fillMatches(
+        activeTabId,
+        fields,
+        matches,
+        autofillMode
+      );
+    }
+  };
+
+  // Update selected state of review matches
+  const toggleMatch = (
+    fieldId: string,
+    selected: boolean
+  ) => {
+    setMatches(previous =>
+      previous.map(match =>
+        match.fieldId === fieldId
+          ? { ...match, selected }
+          : match
+      )
+    );
+  };
+
+  // Update edited field value
+  const updateMatchValue = (
+    fieldId: string,
+    value: string
+  ) => {
+    setMatches(previous =>
+      previous.map(match =>
+        match.fieldId === fieldId
+          ? {
+              ...match,
+              editedValue: value,
+              selected: value.trim()
+                ? match.selected
+                : false
+            }
+          : match
+      )
+    );
   };
 
   // Listen for dynamic webpage changes
@@ -277,7 +371,6 @@ function App() {
             return;
           }
 
-          // Extract updated fields
           const results = await chrome.scripting.executeScript({
             target: { tabId: activeTabId },
             func: extractFields
@@ -287,8 +380,12 @@ function App() {
 
           setFields(updatedFields);
 
+          // New fields require fresh AI analysis
+          setAnalysisReady(false);
+          setMatches([]);
+
           if (updatedFields.length > 0) {
-            setError("");
+            setError("The form changed. Analyze it again to update suggestions.");
           }
 
         } catch (err) {
@@ -369,140 +466,67 @@ function App() {
           </button>
         </section>
 
-        {/* Analyze Section */}
+        {/* Main Application Section */}
         <section className="analyze-card">
 
           <div className="section-heading">
             <div>
-              <h3>Current webpage</h3>
-              <p>Analyze the application form</p>
+              <h3>Fill your application</h3>
+              <p>
+                Choose how ApplyMate should complete the form.
+              </p>
             </div>
-
-            <Globe size={20} />
           </div>
 
-          <button
-            className="analyze-button"
-            onClick={analyzePage}
-            disabled={loading}
-          >
-            {loading ? (
-              <LoaderCircle className="spin" size={18} />
-            ) : (
-              <ScanSearch size={18} />
-            )}
-
-            {loading ? "Analyzing..." : "Analyze Page"}
-          </button>
-
-          {/* Error Message */}
-          {error && (
-            <p className="error">{error}</p>
-          )}
-
-          {/* Detection Results */}
-          {fields.length > 0 && (
-            <div className="results">
-
-              <div className="result-heading">
-                <CheckCircle2 size={17} />
-                {fields.length} fields detected
-              </div>
-
-              {fields.map((field) => (
-                <div
-                  className="field"
-                  key={field.fieldId}
-                >
-                  <div className="field-content">
-
-                    <div className="field-header">
-                      <div>
-                        <strong>
-                          {field.label || field.fieldId}
-                        </strong>
-
-                        <span>
-                          {field.tagName} · {field.type}
-                        </span>
-                      </div>
-
-                      <div className="field-meta">
-
-                        {field.required && (
-                          <span className="required">
-                            Required
-                          </span>
-                        )}
-
-                        {field.kind === "choice-group" && (
-                          <span className="field-type">
-                            Group
-                          </span>
-                        )}
-
-                      </div>
-                    </div>
-
-                    {/* Field Options */}
-                    {field.options &&
-                      field.options.length > 0 && (
-                        <div className="field-options">
-
-                          {field.options.map((option, index) => (
-                            <span
-                              key={`${option.value}-${index}`}
-                            >
-                              {option.label}
-                            </span>
-                          ))}
-
-                        </div>
-                      )}
-
-                  </div>
-                </div>
-              ))}
-
-            </div>
-          )}
-
+          {/* Mode Selector */}
           <div className="mode-selector">
+
             <button
               className={autofillMode === "review" ? "active" : ""}
-              onClick={() => setAutofillMode("review")}
+              onClick={() => {
+                setAutofillMode("review");
+                setError("");
+              }}
+              disabled={loading}
             >
               Review & Fill
             </button>
 
             <button
               className={autofillMode === "quick" ? "active" : ""}
-              onClick={() => setAutofillMode("quick")}
+              onClick={() => {
+                setAutofillMode("quick");
+                setError("");
+              }}
+              disabled={loading}
             >
-              Quick Autofill
+              QuickFill
             </button>
+
           </div>
 
-          {/* AI Review Matches */}
-          {matches.length > 0 && (
-            <div className="review-section">
+          {/* Review Section */}
+          {analysisReady && matches.length > 0 &&
+            autofillMode === "review" && (
+              <div className="review-section">
 
-              <div className="review-heading">
-                <div>
-                  <h3>AI Analysis Results</h3>
-                  <p>Review what ApplyMate understood about this form.</p>
+                <div className="review-heading">
+                  <div>
+                    <h3>AI Analysis Results</h3>
+                    <p>
+                      Review and edit your suggested answers.
+                    </p>
+                  </div>
+
+                  <span className="match-count">
+                    {matches.filter(match =>
+                      match.action === "profile_match" ||
+                      match.action === "generate_answer"
+                    ).length} ready
+                  </span>
                 </div>
 
-                <span className="match-count">
-                  {matches.filter(m =>
-                    m.action === "profile_match" ||
-                    m.action === "generate_answer"
-                  ).length} ready
-                </span>
-              </div>
-
-              {autofillMode === "review" ? (
-                matches.map(match => {
+                {matches.map(match => {
                   const isIgnored = match.action === "ignore";
                   const needsInput = match.action === "manual_input";
 
@@ -514,22 +538,24 @@ function App() {
                   }[match.action];
 
                   return (
-                    <div className="review-field" key={match.fieldId}>
+                    <div
+                      className="review-field"
+                      key={match.fieldId}
+                    >
+
                       <div className="review-field-header">
+
                         <label>
                           <input
                             type="checkbox"
                             checked={match.selected}
                             disabled={isIgnored}
-                            onChange={event => {
-                              setMatches(previous =>
-                                previous.map(item =>
-                                  item.fieldId === match.fieldId
-                                    ? { ...item, selected: event.target.checked }
-                                    : item
-                                )
-                              );
-                            }}
+                            onChange={event =>
+                              toggleMatch(
+                                match.fieldId,
+                                event.target.checked
+                              )
+                            }
                           />
 
                           <strong>{match.fieldLabel}</strong>
@@ -538,6 +564,7 @@ function App() {
                         <span className={`confidence ${match.confidence}`}>
                           {statusLabel}
                         </span>
+
                       </div>
 
                       {!isIgnored && (
@@ -550,91 +577,76 @@ function App() {
                               : "Review suggested value..."
                           }
                           value={match.editedValue}
-                          onChange={event => {
-                            setMatches(previous =>
-                              previous.map(item =>
-                                item.fieldId === match.fieldId
-                                  ? {
-                                      ...item,
-                                      editedValue: event.target.value,
-                                      selected: event.target.value.trim()
-                                        ? item.selected
-                                        : false
-                                    }
-                                  : item
-                              )
-                            );
-                          }}
+                          onChange={event =>
+                            updateMatchValue(
+                              match.fieldId,
+                              event.target.value
+                            )
+                          }
                         />
                       )}
 
                       <span className="matched-source">
                         {match.reason}
                       </span>
+
                     </div>
                   );
-                })
-              ) : (
-                <div className="quick-mode-summary">
-                  <Sparkles size={24} />
+                })}
 
-                  <strong>Quick Autofill is ready</strong>
+              </div>
+            )}
 
-                  <p>
-                    ApplyMate will fill high-confidence matches automatically.
-                    You won't need to review each field individually.
-                  </p>
-
-                  <p>
-                    {matches.filter(match =>
-                      match.confidence === "high" &&
-                      ["profile_match", "generate_answer"].includes(match.action) &&
-                      match.editedValue.trim() !== ""
-                    ).length} fields ready to fill
-                  </p>
-                </div>
-              )}
-
-              <button
-                className="analyze-button"
-                onClick={handleAutofill}
-                disabled={
-                  loading ||
-                  !matches.some(match =>
-                    match.selected &&
-                    !["ignore"].includes(match.action) &&
-                    match.editedValue.trim()
-                  )
-                }
-              >
-                {loading ? (
-                  <>
-                    <LoaderCircle size={16} className="spin" />
-                    Filling...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={16} />
-                    {autofillMode === "quick"
-                      ? "Start Quick Autofill"
-                      : "Fill Selected Fields"}
-                  </>
-                )}
-              </button>
-
-            </div>
-          )}
-
-          {/* Empty State */}
-          {fields.length === 0 && !loading && !error && (
+          {/* No Matches */}
+          {analysisReady && matches.length === 0 && (
             <div className="empty-state">
               <FileText size={25} />
 
               <span>
-                No fields analyzed yet. Open an application
-                form and click Analyze Page.
+                No matching fields were identified.
               </span>
             </div>
+          )}
+
+          {/* Error Message */}
+          {error && (
+            <p className="error">{error}</p>
+          )}
+
+          {/* Single Primary Action */}
+          <button
+            className="analyze-button"
+            onClick={handlePrimaryAction}
+            disabled={loading}
+          >
+            {loading ? (
+              <LoaderCircle
+                className="spin"
+                size={18}
+              />
+            ) : (
+              <Sparkles size={18} />
+            )}
+
+            {loading
+              ? "Working..."
+              : !analysisReady
+                ? autofillMode === "quick"
+                  ? "Analyze & QuickFill"
+                  : "Analyze Application"
+                : autofillMode === "quick"
+                  ? "QuickFill"
+                  : "Fill Application"
+            }
+          </button>
+
+          {!analysisReady && (
+            <p className="action-hint">
+              {autofillMode === "quick"
+                ? "Analyze and fill eligible fields automatically."
+                : "Analyze first, review your answers, then fill the form."
+              }
+            </p>
           )}
 
         </section>
