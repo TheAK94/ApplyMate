@@ -617,3 +617,81 @@ footer {
   flex-direction: column;
   gap: 24px;
 }
+
+
+.skill-input-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.skill-input-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 13px;
+  color: #e8eaf0;
+  background: #101116;
+  border: 1px solid #303341;
+  border-radius: 8px;
+  outline: none;
+  font: inherit;
+  font-size: 12px;
+}
+
+.skill-input-row input:focus {
+  border-color: #8065f5;
+}
+
+.add-skill-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 15px;
+  color: white;
+  background: #7258ed;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.add-skill-button:hover {
+  background: #826bf4;
+}
+
+.skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.skill-chip {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 11px;
+  color: #c5b8ff;
+  background: #29253e;
+  border: 1px solid #44366d;
+  border-radius: 7px;
+  font-size: 11px;
+}
+
+.skill-chip button {
+  display: flex;
+  padding: 0;
+  color: #a99bdb;
+  background: transparent;
+  border: none;
+}
+
+.skill-chip button:hover {
+  color: #ff8585;
+}
+
+.skills-empty {
+  color: #777d8d;
+  font-size: 11px;
+}

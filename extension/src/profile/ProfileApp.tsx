@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, Save, UserRound, GraduationCap } from "lucide-react";
+import { ArrowLeft, Save, UserRound, GraduationCap, Code2, Plus, X } from "lucide-react";
 
 import {
   getProfile,
@@ -26,6 +26,8 @@ function ProfileApp() {
     graduationYear: "",
     cgpa: ""
   });
+  const [skills, setSkills] = useState<string[]>([]);
+  const [newSkill, setNewSkill] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -39,6 +41,7 @@ function ProfileApp() {
         setProfile(savedProfile);
         setPersonal(savedProfile.personal);
         setEducation(savedProfile.education);
+        setSkills(savedProfile.skills ?? []);
       } catch (error) {
         console.error("Unable to load profile:", error);
         setMessage("Unable to load your profile.");
@@ -87,6 +90,7 @@ function ProfileApp() {
         ...profile,
         personal,
         education,
+        skills,
         updatedAt: new Date().toISOString()
       };
 
@@ -100,6 +104,33 @@ function ProfileApp() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleAddSkill = () => {
+    const skill = newSkill.trim();
+
+    if (!skill) return;
+
+    const alreadyExists = skills.some(
+      (item) => item.toLowerCase() === skill.toLowerCase()
+    );
+
+    if (alreadyExists) {
+      setMessage("This skill has already been added.");
+      return;
+    }
+
+    setSkills((prev) => [...prev, skill]);
+    setNewSkill("");
+    setMessage("");
+  };
+
+  const handleRemoveSkill = (skillToRemove: string) => {
+    setSkills((prev) =>
+      prev.filter((skill) => skill !== skillToRemove)
+    );
+
+    setMessage("");
   };
 
   if (loading) {
@@ -277,6 +308,66 @@ function ProfileApp() {
             </div>
           </div>
         </section>
+
+        
+        <section className="profile-section">
+          <div className="profile-section-heading">
+            <div className="profile-section-icon">
+              <Code2 size={19} />
+            </div>
+
+            <div>
+              <h3>Skills</h3>
+              <p>Add your technical and professional skills</p>
+            </div>
+          </div>
+
+          <div className="skill-input-row">
+            <input
+              value={newSkill}
+              onChange={(e) => setNewSkill(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleAddSkill();
+                }
+              }}
+              placeholder="e.g. React, JavaScript, Python"
+            />
+
+            <button
+              type="button"
+              className="add-skill-button"
+              onClick={handleAddSkill}
+            >
+              <Plus size={16} />
+              Add
+            </button>
+          </div>
+
+          <div className="skills-list">
+            {skills.length > 0 ? (
+              skills.map((skill) => (
+                <span className="skill-chip" key={skill}>
+                  {skill}
+
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveSkill(skill)}
+                    aria-label={`Remove ${skill}`}
+                  >
+                    <X size={13} />
+                  </button>
+                </span>
+              ))
+            ) : (
+              <p className="skills-empty">
+                No skills added yet. Add your first skill above.
+              </p>
+            )}
+          </div>
+        </section>
+
 
         <div className="profile-save-area">
             <span className="profile-message">{message}</span>
