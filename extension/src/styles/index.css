@@ -1019,3 +1019,142 @@ footer {
   font-size: 13px;
   line-height: 1.5;
 }
+
+
+/* Header actions */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.reset-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-color, #343640);
+  border-radius: 9px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.reset-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.reset-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Live activity */
+.live-activity {
+  margin-top: 24px;
+}
+
+.activity-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.activity-heading h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.activity-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #a5e6b5;
+}
+
+.activity-indicator span,
+.status span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #45c477;
+}
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.activity-step-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 2px;
+}
+
+.step-completed {
+  color: #45c477;
+}
+
+.step-active {
+  color: #9275ff;
+}
+
+.step-error {
+  color: #ff6b6b;
+}
+
+.activity-step-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.activity-step-content small {
+  font-size: 11px;
+  color: #9295a3;
+}
+
+.activity-empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 0;
+  color: #9295a3;
+  font-size: 13px;
+}
+
+.completion-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 20px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(69, 196, 119, 0.09);
+  color: #9be4b2;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 14px;
+  color: #ff8585;
+  font-size: 12px;
+  line-height: 1.5;
+}
